@@ -167,11 +167,14 @@ table.t input.txt{text-align:left;min-width:130px}
 .modal{position:fixed;top:0;right:0;bottom:0;left:0;inset:0;background:rgba(21,34,44,.45);display:none;align-items:flex-start;justify-content:center;padding:4vh 14px;z-index:50;overflow-y:auto;-webkit-overflow-scrolling:touch;-webkit-transform:translate3d(0,0,0);transform:translate3d(0,0,0)}
 /* v0.21: Safari 彈窗被頁面蓋住 → 明確分層、彈窗開時鎖住背景 */
 .shell{position:relative;z-index:1}
-body.mopen:not(.starting){overflow:hidden}
-/* v0.22: 開始畫面改做獨立一頁（唔再浮喺頁面上面），避開 Safari refresh 後被遮住 */
-body.starting .top,body.starting .shell{display:none!important}
-body.starting #mStart{position:relative;top:auto;right:auto;bottom:auto;left:auto;inset:auto;-webkit-transform:none;transform:none;min-height:100vh;background:var(--paper);overflow:visible;padding:9vh 14px 40px}
-body.starting #mStart .dlg{box-shadow:0 10px 30px rgba(21,34,44,.10);border:1px solid var(--line)}
+/* v0.23: 所有彈窗改做獨立一頁（唔再浮喺頁面上面）。Safari 網頁版浮動彈窗會俾頁面遮住，v0.22 開始畫面用呢個方法已經冇事 */
+body.mpage .top,body.mpage .shell{display:none!important}
+body.mpage .modal.on{position:relative;top:auto;right:auto;bottom:auto;left:auto;inset:auto;-webkit-transform:none;transform:none;min-height:100vh;background:var(--paper);overflow:visible;padding:6vh 14px 40px}
+body.mpage .modal.on:not(.mtop){display:none}
+body.mpage #mStart.on{padding-top:9vh}
+body.mpage .modal.on .dlg{box-shadow:0 10px 30px rgba(21,34,44,.10);border:1px solid var(--line)}
+body.mpage .drawerwrap.on{justify-content:center;align-items:flex-start}
+body.mpage .drawer{height:auto;overflow:visible;border-radius:18px;border:1px solid var(--line);box-shadow:0 10px 30px rgba(21,34,44,.10)}
 .startbrand{font-family:var(--display);font-size:15px;letter-spacing:.08em;color:var(--slate)}
 .modal.on{display:flex}
 .dlg{background:var(--card);border-radius:18px;max-width:980px;width:100%;padding:20px 22px;display:flex;flex-direction:column;gap:14px}
@@ -532,7 +535,7 @@ function setP(o,p,v){ const ks=p.split("."); let x=o; ks.slice(0,-1).forEach(k=>
 function deepMerge(base,o){ if(o==null||typeof o!=="object"||Array.isArray(o)) return o===undefined?base:o; const r=Array.isArray(base)?[]:{...base}; for(const k in o){ r[k]= (base&&typeof base[k]==="object"&&!Array.isArray(base[k])&&base[k]!==null)? deepMerge(base[k],o[k]) : o[k]; } return r; }
 const FX = { HKD:1, USD:7.8, RMB:1.08, "其他":1 };
 try{ if("scrollRestoration" in history) history.scrollRestoration="manual"; }catch(e){}
-const APP_VERSION = "v0.22";
+const APP_VERSION = "v0.23";
 // v0.17: 教學模式（記喺呢部機）。關 = 見客用：只出規劃／分析／一齊嘅字眼；開 = 培訓同事：出流程、講咩、做咩
 let TEACH=false; try{ TEACH=localStorage.getItem("wt-teach")==="1"; }catch(e){}
 
@@ -2280,13 +2283,18 @@ $("#btnStart").onclick=showStart;
 route();
 showStart();
 
-/* v0.21–v0.22: 彈窗開住就鎖背景；開始畫面開住時只顯示開始畫面（Safari refresh 修正） */
+/* v0.23: 彈窗開住時只顯示嗰個彈窗（獨立一頁）；幾個一齊開就顯示最後開嗰個；閂晒返回原本捲到嘅位置 */
 (function(){
-  const sync=()=>{ const b=document.body; const st=$("#mStart").classList.contains("on"); const was=b.classList.contains("starting");
-    b.classList.toggle("starting",st); b.classList.toggle("mopen",!!document.querySelector(".modal.on"));
-    if(st&&!was) window.scrollTo(0,0); };
+  const order=[]; let savedY=0;
+  const sync=()=>{ const b=document.body; const was=b.classList.contains("mpage");
+    $$(".modal").forEach(m=>{ const i=order.indexOf(m); if(m.classList.contains("on")){ if(i<0) order.push(m); } else if(i>=0) order.splice(i,1); });
+    const top=order[order.length-1]||null;
+    $$(".modal").forEach(m=>m.classList.toggle("mtop",m===top));
+    if(top&&!was){ savedY=window.scrollY||0; b.classList.add("mpage"); window.scrollTo(0,0); }
+    else if(!top&&was){ b.classList.remove("mpage"); const y=savedY; requestAnimationFrame(()=>window.scrollTo(0,y)); }
+    else if(top) window.scrollTo(0,0); };
   const mo=new MutationObserver(sync);
-  document.querySelectorAll(".modal").forEach(m=>mo.observe(m,{attributes:true,attributeFilter:["class"]}));
+  $$(".modal").forEach(m=>mo.observe(m,{attributes:true,attributeFilter:["class"]}));
   sync();
 })();
 
