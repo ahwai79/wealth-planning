@@ -167,7 +167,12 @@ table.t input.txt{text-align:left;min-width:130px}
 .modal{position:fixed;top:0;right:0;bottom:0;left:0;inset:0;background:rgba(21,34,44,.45);display:none;align-items:flex-start;justify-content:center;padding:4vh 14px;z-index:50;overflow-y:auto;-webkit-overflow-scrolling:touch;-webkit-transform:translate3d(0,0,0);transform:translate3d(0,0,0)}
 /* v0.21: Safari 彈窗被頁面蓋住 → 明確分層、彈窗開時鎖住背景 */
 .shell{position:relative;z-index:1}
-body.mopen{overflow:hidden}
+body.mopen:not(.starting){overflow:hidden}
+/* v0.22: 開始畫面改做獨立一頁（唔再浮喺頁面上面），避開 Safari refresh 後被遮住 */
+body.starting .top,body.starting .shell{display:none!important}
+body.starting #mStart{position:relative;top:auto;right:auto;bottom:auto;left:auto;inset:auto;-webkit-transform:none;transform:none;min-height:100vh;background:var(--paper);overflow:visible;padding:9vh 14px 40px}
+body.starting #mStart .dlg{box-shadow:0 10px 30px rgba(21,34,44,.10);border:1px solid var(--line)}
+.startbrand{font-family:var(--display);font-size:15px;letter-spacing:.08em;color:var(--slate)}
 .modal.on{display:flex}
 .dlg{background:var(--card);border-radius:18px;max-width:980px;width:100%;padding:20px 22px;display:flex;flex-direction:column;gap:14px}
 .dlg h2{font-family:var(--display);font-size:22px}
@@ -446,6 +451,7 @@ table.t select optgroup{font-weight:700}
 <!-- start screen -->
 <div class="modal" id="mStart" role="dialog" aria-modal="true" aria-labelledby="mStart-h">
   <div class="dlg" style="max-width:760px">
+    <div class="startbrand">財富管理分析</div>
     <h2 id="mStart-h">今日想做咩？</h2>
     <div id="st-body"></div>
   </div>
@@ -525,7 +531,8 @@ function getP(o,p){ return p.split(".").reduce((x,k)=>x==null?x:x[k],o); }
 function setP(o,p,v){ const ks=p.split("."); let x=o; ks.slice(0,-1).forEach(k=>{ if(x[k]==null) x[k]={}; x=x[k]; }); x[ks.at(-1)]=v; }
 function deepMerge(base,o){ if(o==null||typeof o!=="object"||Array.isArray(o)) return o===undefined?base:o; const r=Array.isArray(base)?[]:{...base}; for(const k in o){ r[k]= (base&&typeof base[k]==="object"&&!Array.isArray(base[k])&&base[k]!==null)? deepMerge(base[k],o[k]) : o[k]; } return r; }
 const FX = { HKD:1, USD:7.8, RMB:1.08, "其他":1 };
-const APP_VERSION = "v0.21";
+try{ if("scrollRestoration" in history) history.scrollRestoration="manual"; }catch(e){}
+const APP_VERSION = "v0.22";
 // v0.17: 教學模式（記喺呢部機）。關 = 見客用：只出規劃／分析／一齊嘅字眼；開 = 培訓同事：出流程、講咩、做咩
 let TEACH=false; try{ TEACH=localStorage.getItem("wt-teach")==="1"; }catch(e){}
 
@@ -2273,15 +2280,14 @@ $("#btnStart").onclick=showStart;
 route();
 showStart();
 
-/* v0.21: Safari 彈窗顯示修正：有彈窗開住就鎖背景；字型載入後重畫開始畫面 */
+/* v0.21–v0.22: 彈窗開住就鎖背景；開始畫面開住時只顯示開始畫面（Safari refresh 修正） */
 (function(){
-  const sync=()=>document.body.classList.toggle("mopen",!!document.querySelector(".modal.on"));
+  const sync=()=>{ const b=document.body; const st=$("#mStart").classList.contains("on"); const was=b.classList.contains("starting");
+    b.classList.toggle("starting",st); b.classList.toggle("mopen",!!document.querySelector(".modal.on"));
+    if(st&&!was) window.scrollTo(0,0); };
   const mo=new MutationObserver(sync);
   document.querySelectorAll(".modal").forEach(m=>mo.observe(m,{attributes:true,attributeFilter:["class"]}));
   sync();
-  const nudge=()=>{ const m=$("#mStart"); if(!m||!m.classList.contains("on")) return; m.style.display="none"; void m.offsetHeight; m.style.display=""; };
-  window.addEventListener("load",nudge);
-  if(document.fonts&&document.fonts.ready) document.fonts.ready.then(nudge);
 })();
 
 
